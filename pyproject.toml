@@ -1,0 +1,15 @@
+[project]
+name = "lab-more-project-mia"  # pick a unique name for PyPI
+version = "0.1.0"
+description = "A simple chat and text summarization tool"
+authors = [{name = "Mia U", email = "murosevic28@cmc.edu"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pytest",
+    "coverage",
+    "python-dotenv"
+]
+
+[project.scripts]
+chat = "chat:repl"
