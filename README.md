@@ -11,7 +11,7 @@ This project provides a simple text summarization and chat interface using a moc
 
 ## Installation
 
-Install via PyPI (replace with your PyPI project name):
+Install via pip:
 
 ```bash
-pip install Lab-more-project-mia
+pip install cmc-csci40-mia
