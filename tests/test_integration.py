@@ -1,27 +1,33 @@
-from docsum_src.docsum import summarize_text
-from docsum_src.llm import LLM
-from docsum_src.chat import Chat, repl
+import subprocess
+import sys
 
-def test_summarize_text():
-    """Test the summarization function with mock LLM output."""
-    result = summarize_text("Python is awesome.")
-    # Your current mock LLM returns "Hello from LLM"
-    assert result == "Hello from LLM"
 
-def test_repl(monkeypatch, capsys):
-    """Test the REPL loop for full coverage."""
-    inputs = iter(["Hello", "How are you?", "Goodbye"])
+def test_cli_message_runs():
+    result = subprocess.run(
+        [sys.executable, "chat.py", "what is 2 + 2?"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "4" in result.stdout
 
-    def fake_input(prompt):
-        try:
-            return next(inputs)
-        except StopIteration:
-            raise KeyboardInterrupt
 
-    repl(input_func=fake_input)
+def test_cli_debug_runs():
+    result = subprocess.run(
+        [sys.executable, "chat.py", "--debug", "what is 2 + 2?"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "[tool] /calculate 2 + 2" in result.stdout
+    assert "4" in result.stdout
 
-    captured = capsys.readouterr()
-    # Confirm all expected responses appear
-    assert "Hello! 👋 How can I assist you today?" in captured.out
-    assert "You said: How are you?" in captured.out
-    assert "Goodbye!" in captured.out
+
+def test_cli_provider_runs():
+    result = subprocess.run(
+        [sys.executable, "chat.py", "--provider", "groq", "what is 2 + 2?"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "4" in result.stdout
