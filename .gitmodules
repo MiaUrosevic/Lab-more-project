@@ -1,0 +1,10 @@
+[submodule "test_projects/webscraping_project"]
+	path = test_projects/webscraping_project
+	url = https://github.com/MiaUrosevic/Project02_Webscraping
+[submodule "test_projects/markdown_compiler"]
+	path = test_projects/markdown_compiler
+	url = https://github.com/MiaUrosevic/Markdown_Compiler-2.0-
+[submodule "test_projects/Mia.Urosevic.github.io"]
+	path = test_projects/Mia.Urosevic.github.io
+	url = https://github.com/MiaUrosevic/MiaUrosevic.github.io
+
