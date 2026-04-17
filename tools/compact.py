@@ -19,11 +19,14 @@ def run_compact(chat):
     >>> chat.messages[0]["role"]
     'system'
     """
-    transcript = []
-    for msg in chat.messages:
-        transcript.append(f"{msg['role']}: {msg['content']}")
-    transcript_text = "\n".join(transcript)
+    # this is the correct way to turn a 
+    # list of dictionaries into a string
+    transcript = json.dumps(chat.messages)
 
+
+    # below is not a correct implmentation;
+    # you need to actually use the llm somehow,
+    # which you are not.
     summary = f"Summary of conversation:\n{transcript_text[:300]}"
     chat.messages = [{"role": "system", "content": summary}]
     return summary

@@ -15,8 +15,11 @@ def run_calculate(expression):
     True
     """
     try:
-        allowed_globals = {"__builtins__": {}}
-        result = eval(expression, allowed_globals, {})
+        # what you had was pretty dangerous and I'm 
+        # not sure where you got it from since it
+        # doesn't match what we did in class or 
+        # the tutorial code
+        result = eval(expression)
         return str(result)
     except Exception as e:
         return f"Error: {e}"
