@@ -32,3 +32,5 @@ jobs:
           python -m doctest -v tools/grep.py
           python -m doctest -v tools/calculate.py
           python -m doctest -v tools/compact.py
+
+          # no coverage report?

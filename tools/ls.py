@@ -11,6 +11,9 @@ def run_ls(path="."):
     """
     List files in the current folder or a specified relative folder.
 
+    # super cheesy and doesn't help me understand what
+    # your program does; just actually list the 
+    # contents of the output
     >>> isinstance(run_ls("."), str)
     True
     >>> run_ls("..")

@@ -1,6 +1,4 @@
 """
-Main entry point for the local project chat application.
-
 This file defines the Chat class, path safety checks, the CLI interface,
 and the interactive REPL for talking to local project files with tools.
 """
@@ -11,6 +9,15 @@ import shlex
 from pathlib import PurePath
 
 
+# very weird to include this function here
+# and it causes your imports elsewhere to behave
+# weirdly as well;
+# this needs to be fixed for next project;
+# easy way to do it is move this function to its
+# own file in the tools folder,
+# then all of those tools important this function;
+# then you can move your imports below to the top
+# level where they belong
 def is_path_safe(path: str) -> bool:
     """
     Return True only if a path is relative and contains no directory traversal.
@@ -41,17 +48,16 @@ class Chat:
     choose a tool for simple file-related questions. The design is intentionally simple so
     it is easy to test and extend with real provider API calls later.
 
-    >>> chat = Chat()
-    >>> isinstance(chat.messages, list)
-    True
-    >>> sorted(chat.tools.keys())
-    ['calculate', 'cat', 'compact', 'grep', 'ls']
+
+    # these test cases do actually test anything
     """
 
     def __init__(self, provider="groq", debug=False):
         """
         Initialize a new Chat session.
         """
+        # you don't actually do anything with this
+        # provider information ever
         self.provider = provider
         self.debug = debug
         self.messages = []
@@ -67,9 +73,15 @@ class Chat:
         """
         Print a tool debug line if debug mode is enabled.
 
+        # this is not a good test case;
+        # you should actually show me the output of the function
+        #
         >>> chat = Chat(debug=False)
         >>> chat._debug_print("ls", [".github"]) is None
-        True
+
+        better is:
+        >>> chat._debug_print("ls", [".github"])
+        and add correct output here
         """
         if self.debug:
             print(f"[tool] /{command}" + (f" {' '.join(args)}" if args else ""))
@@ -78,6 +90,10 @@ class Chat:
         """
         Run the ls tool.
         """
+        # again, this is super janky;
+        # making the fix above with the safe path function
+        # will let you not have these janky methods;
+        # fix this for next submission
         from tools.ls import run_ls
         path = args[0] if args else "."
         return run_ls(path)
@@ -120,6 +136,9 @@ class Chat:
         """
         Execute a slash command directly without calling the model.
 
+        # not good test cases;
+        # you need to actually show me the output of these functions
+
         >>> chat = Chat()
         >>> isinstance(chat.run_manual_command("/ls"), str)
         True
@@ -143,37 +162,6 @@ class Chat:
         )
         return result
 
-    def _auto_choose_tool(self, message: str):
-        """
-        Very simple automatic tool router for local project questions.
-
-        >>> chat = Chat()
-        >>> chat._auto_choose_tool("what files are in the .github folder?")
-        ('ls', ['.github'])
-        >>> chat._auto_choose_tool("show me README.md")
-        ('cat', ['README.md'])
-        >>> chat._auto_choose_tool("find def in tools/*.py")
-        ('grep', ['def', 'tools/*.py'])
-        >>> chat._auto_choose_tool("what is 2 + 2?")
-        ('calculate', ['2 + 2'])
-        """
-        text = message.strip().lower()
-
-        if "what files are in" in text and ".github" in text:
-            return ("ls", [".github"])
-        if text.startswith("show me ") or text.startswith("open "):
-            filename = message.strip().split(maxsplit=2)[-1]
-            return ("cat", [filename])
-        if text.startswith("find ") and " in " in message:
-            body = message.strip()[5:]
-            pattern, path = body.split(" in ", 1)
-            return ("grep", [pattern.strip(), path.strip()])
-        if "what is " in text:
-            expr = message.strip()[8:].rstrip("?")
-            if any(ch.isdigit() for ch in expr):
-                return ("calculate", [expr])
-        return None
-
     def send_message(self, message: str) -> str:
         """
         Send a message and return a response.
@@ -188,6 +176,11 @@ class Chat:
         """
         self.messages.append({"role": "user", "content": message})
 
+        # this is not how tool use is supposed to work
+        # you are supposed to let the LLM choose
+        # which tool to call (like we did in class)
+        # and not have to hard code certain patterns;
+        # this needs to be fixed for the next project
         tool_call = self._auto_choose_tool(message)
         if tool_call is not None:
             command, args = tool_call
@@ -269,9 +262,9 @@ def main(argv=None):
     """
     Run the CLI program.
 
-    >>> main(["what is 2 + 2?"]) is None
+    # your previous doctest was too complicated
+    >>> main(["what is 2 + 2?"])
     4
-    True
     """
     args = parse_args(argv)
     chat = Chat(provider=args.provider, debug=args.debug)
