@@ -1,6 +1,6 @@
 # Local Project Chat Agent
 
-An AI-powered command-line coding agent for exploring and modifying git repositories with natural language and local tool calling. It safely reads project files, writes changes back to the repo, runs doctests, and records its edits as git commits.
+An AI-powered command-line coding agent for exploring and modifying git repositories with natural language and local tool calling. It can inspect files, run repository-aware tools, write changes back to the working tree, and record those edits as git commits.
 
 ![doctests](https://img.shields.io/github/actions/workflow/status/MiaUrosevic/Lab-more-project/doctests.yml?label=doctests)
 ![integration-tests](https://img.shields.io/github/actions/workflow/status/MiaUrosevic/Lab-more-project/integration-tests.yml?label=integration-tests)
@@ -33,7 +33,6 @@ An AI-powered command-line coding agent for exploring and modifying git reposito
 
 ```bash
 pip install .
-docchat
 ```
 
 ## Usage
@@ -45,7 +44,14 @@ docchat --debug "what files are in the .github folder?"
 docchat --provider groq "show me README.md"
 ```
 
-## Example: Create A File
+## Project Structure
+
+- `chat.py` contains the main CLI and chat loop
+- `tools/` contains one file per built-in tool
+- `tests/` contains unit and integration tests
+- `test_projects/` contains the previous project submodules used for integration examples
+
+## Create A File
 This example is good because it proves the agent can create a new file and automatically record the change as a git commit.
 
 ```bash
@@ -66,7 +72,7 @@ $ git log --oneline -1
 3cfb0a6 [docchat] create hello world script
 ```
 
-## Example: Update A File
+## Update A File
 This example is good because it shows the agent modifying an existing tracked file, rerunning doctests, and saving the result as a new commit.
 
 ```bash
@@ -88,7 +94,7 @@ $ python -m doctest -v calc.py
 Test passed.
 ```
 
-## Example: Delete A File
+## Delete A File
 This example is good because it demonstrates safe removal through the agent and shows that deletions are committed too.
 
 ```bash
@@ -104,7 +110,7 @@ $ git log --oneline -1
 8bf42a0 [docchat] rm draft.txt
 ```
 
-## Example: Webscraping Project
+## Webscraping Project
 This example is good because it shows the agent answering a high-level question about a real previous project.
 
 ```bash
@@ -113,7 +119,7 @@ $ docchat "what is this project about?"
 The project is designed to scrape product data from eBay listings, including titles, prices, and links.
 ```
 
-## Example: Markdown Compiler
+## Markdown Compiler
 This example is good because it shows the agent inspecting implementation details across source files.
 
 ```bash
@@ -124,7 +130,7 @@ def parse_headers(text):
 def render_html(content):
 ```
 
-## Example: Mia.Urosevic.github.io
+## Mia.Urosevic.github.io
 This example is good because it shows the agent reading and summarizing files from a real webpage project.
 
 ```bash
@@ -133,7 +139,7 @@ $ docchat "show me README.md"
 This project is a personal website built using HTML, CSS, and JavaScript.
 ```
 
-## Extra Credit: AI-Only Markdown Compiler Branch
-This example is good because it provides a branch of the markdown compiler assignment whose history contains only an AI-created root commit.
+## Extra Credit
+This branch shows the markdown compiler assignment on an AI-only branch whose history contains a single AI-created root commit.
 
 [Markdown Compiler `ai-only` branch](https://github.com/MiaUrosevic/Markdown_Compiler-2.0-/tree/ai-only)
