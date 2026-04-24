@@ -9,12 +9,15 @@ def run_cat(path):
     """
     Read and return the contents of a text file.
 
-    >>> import os, tempfile
-    >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     path = os.path.join(tmp, "hello.txt")
-    ...     _ = open(path, "w", encoding="utf-8").write("hello\\nworld")
-    ...     run_cat(path)
+    >>> import os, shutil
+    >>> test_dir = "__doctest_cat_tmp__"
+    >>> shutil.rmtree(test_dir, ignore_errors=True)
+    >>> os.makedirs(test_dir)
+    >>> path = os.path.join(test_dir, "hello.txt")
+    >>> _ = open(path, "w", encoding="utf-8").write("hello\\nworld")
+    >>> run_cat(path)
     'hello\\nworld'
+    >>> shutil.rmtree(test_dir)
 
     >>> run_cat("..")
     'Error: unsafe path'
