@@ -7,13 +7,16 @@ name = "lab-more-project-chat"
 version = "0.1.0"
 description = "A local project chat assistant with safe file tools and slash commands."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [{name = "Mia U"}]
 requires-python = ">=3.10"
 dependencies = []
 
 [tool.setuptools]
 py-modules = ["chat"]
+
+[tool.setuptools.packages.find]
+include = ["tools"]
 
 [project.scripts]
 chat = "chat:main"
