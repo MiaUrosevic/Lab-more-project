@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from git import Repo
 from pathlib import Path
 
 
@@ -119,3 +120,51 @@ def test_chat_runs_in_markdown_submodule():
     )
     assert result.returncode == 0
     assert result.stdout.strip()
+
+
+def test_cli_requires_git_directory(tmp_path):
+    """Stop immediately when launched outside a git repository."""
+    result = subprocess.run(
+        [sys.executable, str(CHAT_SCRIPT), "what is 2 + 2?"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert (
+        result.stdout.strip()
+        == "Error: docchat must be run from a directory containing a .git folder"
+    )
+
+
+def test_cli_loads_agents_file(tmp_path):
+    """Preload AGENTS.md so provider-backed runs can see repository instructions."""
+    Repo.init(tmp_path)
+    (tmp_path / "AGENTS.md").write_text("Always mention safety first.", encoding="utf-8")
+    env = {
+        **os.environ,
+        "OPENROUTER_API_KEY": "test-token",
+        "CHAT_PROVIDER_STUB_RESPONSE": json.dumps(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "Stub provider response.",
+                        }
+                    }
+                ]
+            }
+        ),
+    }
+    result = subprocess.run(
+        [sys.executable, str(CHAT_SCRIPT), "--provider", "openai", "hello"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "Stub provider response."

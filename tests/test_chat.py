@@ -4,7 +4,16 @@ import json
 import os
 from unittest.mock import Mock, patch
 
-from chat import Chat, complete_input, configure_readline, is_path_safe, main, repl
+from chat import (
+    Chat,
+    complete_input,
+    configure_readline,
+    initialize_chat,
+    is_path_safe,
+    main,
+    repl,
+    validate_repo_startup,
+)
 
 
 def test_is_path_safe():
@@ -14,6 +23,33 @@ def test_is_path_safe():
     assert is_path_safe("../x") is False
     assert is_path_safe("a/../b.txt") is False
     assert is_path_safe(r"C:\Windows\System32") is False
+
+
+def test_validate_repo_startup(tmp_path):
+    """Require a .git directory when the program starts."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert (
+            validate_repo_startup()
+            == "Error: docchat must be run from a directory containing a .git folder"
+        )
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_initialize_chat_loads_agents(tmp_path):
+    """Load AGENTS.md into the conversation during startup."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "AGENTS.md").write_text("Use tests.", encoding="utf-8")
+        chat = Chat()
+        assert initialize_chat(chat) is None
+        assert any("AGENTS.md" in message["content"] for message in chat.messages)
+    finally:
+        os.chdir(old_cwd)
 
 
 def test_complete_input_command():
@@ -108,6 +144,83 @@ def test_provider_send_with_tool_call():
     assert any(message["role"] == "tool" for message in chat.messages)
 
 
+def test_provider_doctest_retry_loop():
+    """Force another provider turn when doctests fail."""
+    tool_response = Mock()
+    tool_response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_doctest",
+                            "type": "function",
+                            "function": {
+                                "name": "doctests",
+                                "arguments": "{\"path\": \"chat.py\"}",
+                            },
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    tool_response.raise_for_status.return_value = None
+
+    blocked_answer = Mock()
+    blocked_answer.json.return_value = {
+        "choices": [{"message": {"content": "I am done."}}]
+    }
+    blocked_answer.raise_for_status.return_value = None
+
+    passing_tool_response = Mock()
+    passing_tool_response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "tool_calls": [
+                        {
+                            "id": "call_doctest_pass",
+                            "type": "function",
+                            "function": {
+                                "name": "doctests",
+                                "arguments": "{\"path\": \"chat.py\"}",
+                            },
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    passing_tool_response.raise_for_status.return_value = None
+
+    final_response = Mock()
+    final_response.json.return_value = {
+        "choices": [{"message": {"content": "I fixed the doctests."}}]
+    }
+    final_response.raise_for_status.return_value = None
+
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "token"}, clear=False):
+        with patch(
+            "chat.requests.post",
+            side_effect=[
+                tool_response,
+                blocked_answer,
+                passing_tool_response,
+                final_response,
+            ],
+        ):
+            chat = Chat("openai")
+            doctest_outputs = iter([
+                "***Test Failed*** 1 failures.",
+                "Test passed.",
+            ])
+            with patch.dict(chat.tools["doctests"], {"runner": lambda path: next(doctest_outputs)}):
+                result = chat.send_message("run doctests and fix them")
+    assert result == "I fixed the doctests."
+    assert any(message["role"] == "system" for message in chat.messages)
+
+
 def test_execute_tool_call():
     """Execute a tutorial-shaped tool call payload locally."""
     chat = Chat()
@@ -129,6 +242,15 @@ def test_manual_ls_returns_string():
     chat = Chat()
     result = chat.run_manual_command("/ls")
     assert isinstance(result, str)
+
+
+def test_manual_write_files_bad_json():
+    """Reject malformed JSON when write_files is invoked manually."""
+    chat = Chat()
+    assert (
+        chat.run_manual_command('/write_files "{bad" "msg"')
+        == "Error: invalid JSON arguments for write_files"
+    )
 
 
 def test_manual_cat_wrong_args():

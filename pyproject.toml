@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 authors = [{name = "Mia U"}]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["requests", "GitPython"]
 
 [tool.setuptools]
 py-modules = ["chat"]
@@ -20,3 +20,4 @@ include = ["tools"]
 
 [project.scripts]
 chat = "chat:main"
+docchat = "chat:main"

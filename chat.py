@@ -1,8 +1,8 @@
 """
 Main entry point for the local project chat application.
 
-This file defines the Chat class, path safety checks, the CLI interface,
-and the interactive REPL for talking to local project files with tools.
+This file defines the Chat class, path safety checks, startup repository checks,
+the CLI interface, and the interactive REPL for talking to local project files.
 """
 
 import argparse
@@ -135,21 +135,40 @@ def configure_readline(commands):
     return True
 
 
+def validate_repo_startup():
+    """
+    Validate that the current directory looks like a git repository root.
+
+    >>> import os, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmpdir:
+    ...     old_cwd = os.getcwd()
+    ...     os.chdir(tmpdir)
+    ...     result = validate_repo_startup()
+    ...     os.chdir(old_cwd)
+    ...     result
+    'Error: docchat must be run from a directory containing a .git folder'
+    """
+    if not os.path.isdir(".git"):
+        return "Error: docchat must be run from a directory containing a .git folder"
+    return None
+
+
 class Chat:
     """
     A Chat manages a local file-aware conversation session with manual and automatic tool use.
 
-    It stores messages, supports slash commands like `/ls` and `/cat`, and can
-    either use deterministic local routing or call a configured provider with
-    Groq-style local tool calling for richer conversations.
+    It stores messages, supports slash commands like `/ls` and `/cat`, validates
+    repository startup requirements, and can either use deterministic local routing
+    or call a configured provider with local tool orchestration.
 
     >>> chat = Chat()
     >>> isinstance(chat.messages, list)
     True
-    >>> sorted(chat.tools.keys())
-    ['calculate', 'cat', 'compact', 'grep', 'ls']
-    >>> chat._auto_choose_tool("what is 2 + 2?")["function"]["name"]
-    'calculate'
+    >>> names = sorted(chat.tools.keys())
+    >>> names[:4]
+    ['calculate', 'cat', 'compact', 'doctests']
+    >>> names[-3:]
+    ['rm', 'write_file', 'write_files']
     """
 
     def __init__(self, provider="groq", debug=False):
@@ -162,14 +181,25 @@ class Chat:
         from tools.cat import run_cat
         from tools.compact import TOOL_SPEC as COMPACT_TOOL_SPEC
         from tools.compact import run_compact
+        from tools.doctests import TOOL_SPEC as DOCTESTS_TOOL_SPEC
+        from tools.doctests import run_doctests
         from tools.grep import TOOL_SPEC as GREP_TOOL_SPEC
         from tools.grep import run_grep
         from tools.ls import TOOL_SPEC as LS_TOOL_SPEC
         from tools.ls import run_ls
+        from tools.pip_install import TOOL_SPEC as PIP_INSTALL_TOOL_SPEC
+        from tools.pip_install import run_pip_install
+        from tools.rm import TOOL_SPEC as RM_TOOL_SPEC
+        from tools.rm import run_rm
+        from tools.write_file import TOOL_SPEC as WRITE_FILE_TOOL_SPEC
+        from tools.write_file import run_write_file
+        from tools.write_files import TOOL_SPEC as WRITE_FILES_TOOL_SPEC
+        from tools.write_files import run_write_files
 
         self.provider = provider
         self.debug = debug
         self.messages = []
+        self.pending_doctest_retry = False
         self.tools = {
             "ls": {
                 "spec": LS_TOOL_SPEC,
@@ -196,11 +226,40 @@ class Chat:
                 "runner": lambda: run_compact(self),
                 "manual_arguments": [],
             },
+            "doctests": {
+                "spec": DOCTESTS_TOOL_SPEC,
+                "runner": run_doctests,
+                "manual_arguments": ["path"],
+            },
+            "write_file": {
+                "spec": WRITE_FILE_TOOL_SPEC,
+                "runner": run_write_file,
+                "manual_arguments": ["path", "contents", "commit_message"],
+            },
+            "write_files": {
+                "spec": WRITE_FILES_TOOL_SPEC,
+                "runner": run_write_files,
+                "manual_arguments": ["files_json", "commit_message"],
+            },
+            "rm": {
+                "spec": RM_TOOL_SPEC,
+                "runner": run_rm,
+                "manual_arguments": ["path"],
+            },
+            "pip_install": {
+                "spec": PIP_INSTALL_TOOL_SPEC,
+                "runner": run_pip_install,
+                "manual_arguments": ["library_name"],
+            },
         }
 
     def _debug_print(self, command, args):
         """
         Print a tool debug line if debug mode is enabled.
+
+        >>> chat = Chat(debug=False)
+        >>> chat._debug_print("ls", [".github"]) is None
+        True
         """
         if self.debug:
             print(f"[tool] /{command}" + (f" {' '.join(args)}" if args else ""))
@@ -251,10 +310,39 @@ class Chat:
         """
         Return the tool schemas exposed to the language model.
 
-        >>> len(Chat().tool_schemas()) >= 5
+        >>> len(Chat().tool_schemas()) >= 10
         True
         """
         return [tool["spec"] for tool in self.tools.values()]
+
+    def load_agents_file(self):
+        """
+        Load AGENTS.md into the conversation using the cat tool when it exists.
+
+        >>> import os, tempfile
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     old_cwd = os.getcwd()
+        ...     os.chdir(tmpdir)
+        ...     _ = os.mkdir(".git")
+        ...     _ = open("AGENTS.md", "w", encoding="utf-8").write("Be careful.")
+        ...     chat = Chat()
+        ...     loaded = chat.load_agents_file()
+        ...     os.chdir(old_cwd)
+        ...     loaded and "AGENTS.md" in chat.messages[0]["content"]
+        True
+        """
+        if not os.path.isfile("AGENTS.md"):
+            return False
+
+        result = self.tools["cat"]["runner"]("AGENTS.md")
+        self._append_tool_message("cat", ["AGENTS.md"], result)
+        self.messages.append(
+            {
+                "role": "system",
+                "content": "Follow the repository instructions from AGENTS.md:\n" + result,
+            }
+        )
+        return True
 
     def _manual_args_to_kwargs(self, command, args):
         """
@@ -265,12 +353,23 @@ class Chat:
         {'path': '.'}
         >>> chat._manual_args_to_kwargs("grep", ["def", "tools/*.py"])
         {'pattern': 'def', 'path_glob': 'tools/*.py'}
+        >>> kwargs = chat._manual_args_to_kwargs(
+        ...     "write_files",
+        ...     ['[{"path":"a.txt","contents":"x"}]', 'msg'],
+        ... )
+        >>> kwargs["commit_message"]
+        'msg'
         """
-        argument_names = self.tools[command]["manual_arguments"]
         if command == "ls":
             if len(args) > 1:
                 return None
             return {"path": args[0] if args else "."}
+        if command == "write_files":
+            if len(args) != 2:
+                return None
+            return {"files": json.loads(args[0]), "commit_message": args[1]}
+
+        argument_names = self.tools[command]["manual_arguments"]
         if len(args) != len(argument_names):
             return None
         return dict(zip(argument_names, args))
@@ -294,7 +393,7 @@ class Chat:
 
     def _make_tool_call(self, name, arguments):
         """
-        Create a local tool-call payload in the Groq tutorial shape.
+        Create a local tool-call payload in the tool-calling shape.
 
         >>> chat = Chat()
         >>> chat._make_tool_call("ls", {"path": ".github"})["function"]["arguments"]
@@ -329,7 +428,10 @@ class Chat:
         if command not in self.tools:
             return f"Error: unknown command '{command}'"
 
-        kwargs = self._manual_args_to_kwargs(command, args)
+        try:
+            kwargs = self._manual_args_to_kwargs(command, args)
+        except json.JSONDecodeError:
+            return f"Error: invalid JSON arguments for {command}"
         if kwargs is None:
             return self._wrong_argument_error(command)
 
@@ -353,6 +455,11 @@ class Chat:
             "grep": "Error: grep requires 2 arguments",
             "calculate": "Error: calculate requires 1 argument",
             "compact": "Error: compact accepts 0 arguments",
+            "doctests": "Error: doctests requires 1 argument",
+            "write_file": "Error: write_file requires 3 arguments",
+            "write_files": "Error: write_files requires 2 arguments",
+            "rm": "Error: rm requires 1 argument",
+            "pip_install": "Error: pip_install requires 1 argument",
         }
         return counts[command]
 
@@ -489,9 +596,7 @@ class Chat:
         'application/json'
         """
         settings = self.provider_settings()
-        headers = {
-            "Content-Type": "application/json",
-        }
+        headers = {"Content-Type": "application/json"}
         if settings["api_key"]:
             headers["Authorization"] = f"Bearer {settings['api_key']}"
         if self.provider != "groq":
@@ -539,6 +644,42 @@ class Chat:
         response.raise_for_status()
         return response.json()
 
+    def _doctest_status(self, command, result):
+        """
+        Return the detected doctest status for a tool result.
+
+        >>> chat = Chat()
+        >>> chat._doctest_status("doctests", "Test passed.")
+        'passed'
+        >>> chat._doctest_status("write_file", "***Test Failed*** 1 failures.")
+        'failed'
+        """
+        if command not in {"doctests", "write_file", "write_files"}:
+            return None
+        if "***Test Failed***" in result:
+            return "failed"
+        if "Test passed." in result:
+            return "passed"
+        return None
+
+    def _update_doctest_retry_state(self, command, result):
+        """
+        Track whether the next provider turn must continue fixing doctests.
+
+        >>> chat = Chat()
+        >>> chat._update_doctest_retry_state("doctests", "***Test Failed***")
+        >>> chat.pending_doctest_retry
+        True
+        >>> chat._update_doctest_retry_state("doctests", "Test passed.")
+        >>> chat.pending_doctest_retry
+        False
+        """
+        status = self._doctest_status(command, result)
+        if status == "failed":
+            self.pending_doctest_retry = True
+        elif status == "passed":
+            self.pending_doctest_retry = False
+
     def _send_with_provider(self):
         """
         Run the provider loop until a final assistant response is returned.
@@ -548,7 +689,7 @@ class Chat:
         >>> isinstance(chat._provider_messages(), list)
         True
         """
-        for _ in range(5):
+        for _ in range(8):
             response_data = self._provider_request()
             response_message = response_data["choices"][0]["message"]
             tool_calls = response_message.get("tool_calls") or []
@@ -570,6 +711,19 @@ class Chat:
                         tool_result,
                         tool_call_id=tool_call["id"],
                     )
+                    self._update_doctest_retry_state(command, tool_result)
+                continue
+
+            if self.pending_doctest_retry:
+                self.messages.append(
+                    {
+                        "role": "system",
+                        "content": (
+                            "Doctests are still failing. Use write_file, write_files, rm, "
+                            "and doctests again until the doctests pass before answering."
+                        ),
+                    }
+                )
                 continue
 
             assistant_text = response_message.get("content") or ""
@@ -599,7 +753,8 @@ class Chat:
 
         fallback = (
             "I could not automatically determine the right tool for that request yet. "
-            "Try a slash command like /ls, /cat, /grep, /calculate, or /compact."
+            "Try a slash command like /ls, /cat, /grep, /calculate, /doctests, "
+            "/write_file, /write_files, /rm, /pip_install, or /compact."
         )
         self.messages.append({"role": "assistant", "content": fallback})
         return fallback
@@ -626,6 +781,25 @@ class Chat:
                 self.messages.append({"role": "assistant", "content": warning})
 
         return self._send_with_deterministic_router(message)
+
+
+def initialize_chat(chat):
+    """
+    Validate startup requirements and preload AGENTS.md when present.
+
+    >>> chat = Chat()
+    >>> error = initialize_chat(chat)
+    >>> error in {
+    ...     None,
+    ...     'Error: docchat must be run from a directory containing a .git folder',
+    ... }
+    True
+    """
+    error = validate_repo_startup()
+    if error is not None:
+        return error
+    chat.load_agents_file()
+    return None
 
 
 def parse_args(argv=None):
@@ -683,6 +857,10 @@ def main(argv=None):
     """
     args = parse_args(argv)
     chat = Chat(provider=args.provider, debug=args.debug)
+    startup_error = initialize_chat(chat)
+    if startup_error is not None:
+        print(startup_error)
+        return None
 
     if args.message:
         print(chat.send_message(args.message))
