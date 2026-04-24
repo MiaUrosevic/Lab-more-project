@@ -21,10 +21,10 @@ An AI-powered command-line coding agent for exploring and modifying git reposito
 - Safe local read and write tools with path validation that blocks absolute paths and traversal attacks
 - Manual slash commands and automatic LLM tool use
 - Repository-aware startup checks with automatic `AGENTS.md` loading
-- File creation, multi-file writes, file deletion, doctest execution, and optional package installs
+- File creation, patch-based file updates, multi-file writes, file deletion, doctest execution, and optional package installs
 - Automatic git commits for agent edits with `[docchat]` commit messages
 - One-shot CLI usage, `--debug`, `--provider`, and slash-command tab completion
-- Extra credit support for `pip_install` and a doctest retry loop that keeps going until doctests pass
+- Extra credit support for `pip_install`, patch-based file updates, and a doctest retry loop that keeps going until doctests pass
 - Full testing suite with doctests, integration tests, flake8, and coverage
 
 ---

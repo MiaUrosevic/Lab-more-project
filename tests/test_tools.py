@@ -26,6 +26,9 @@ from tools.rm import TOOL_SPEC as RM_TOOL_SPEC
 from tools.rm import run_rm
 from tools.write_file import TOOL_SPEC as WRITE_FILE_TOOL_SPEC
 from tools.write_file import run_write_file
+from tools.write_files import apply_diff_to_text
+from tools.write_files import _find_sequence
+from tools.write_files import _parse_diff_hunks
 from tools.write_files import TOOL_SPEC as WRITE_FILES_TOOL_SPEC
 from tools.write_files import run_write_files
 
@@ -175,9 +178,46 @@ def test_write_file(tmp_path):
     os.chdir(tmp_path)
     try:
         Repo.init(tmp_path)
-        result = run_write_file("demo.txt", "hello", "write demo")
+        result = run_write_file("demo.txt", "write demo", contents="hello")
         assert "Committed" in result
         assert (tmp_path / "demo.txt").read_text(encoding="utf-8") == "hello"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_apply_diff_to_text():
+    """Apply a small diff to existing text without relying on line numbers."""
+    assert apply_diff_to_text("hello\nworld\n", "@@\n-hello\n+hi") == "hi\nworld\n"
+
+
+def test_parse_diff_hunks_multiple_sections():
+    """Split multiple hunks and ignore diff metadata lines."""
+    diff = "diff --git a/a b/a\n@@\n-old\n+new\n@@\n same\n+added"
+    assert _parse_diff_hunks(diff) == [
+        [("-old", "old\n"), ("+new", "new\n")],
+        [(" same", "same\n"), ("+added", "added\n")],
+    ]
+
+
+def test_find_sequence_empty_pattern():
+    """Treat an empty search sequence as an insertion at the current index."""
+    assert _find_sequence(["a\n"], [], 1) == 1
+
+
+def test_write_file_with_diff(tmp_path):
+    """Patch an existing file through the single-file wrapper."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        Repo.init(tmp_path)
+        (tmp_path / "demo.txt").write_text("hello\nworld\n", encoding="utf-8")
+        result = run_write_file(
+            "demo.txt",
+            "patch demo",
+            diff="@@\n-hello\n+hi",
+        )
+        assert "Committed" in result
+        assert (tmp_path / "demo.txt").read_text(encoding="utf-8") == "hi\nworld\n"
     finally:
         os.chdir(old_cwd)
 
@@ -217,6 +257,32 @@ def test_write_files_creates_parent_directories(tmp_path):
 def test_write_files_unsafe():
     """Reject unsafe paths before writing files."""
     assert run_write_files([{"path": "..", "contents": "x"}], "bad") == "Error: unsafe path"
+
+
+def test_write_files_missing_contents_and_diff():
+    """Reject file entries that provide neither contents nor a diff."""
+    assert (
+        run_write_files([{"path": "demo.txt"}], "bad")
+        == "Error: File entry must include contents or diff"
+    )
+
+
+def test_write_files_bad_diff(tmp_path):
+    """Return a clear error when a patch cannot be applied."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        Repo.init(tmp_path)
+        (tmp_path / "demo.txt").write_text("hello\n", encoding="utf-8")
+        assert (
+            run_write_files(
+                [{"path": "demo.txt", "diff": "@@\n-goodbye\n+hi"}],
+                "bad patch",
+            )
+            == "Error: Could not apply diff hunk"
+        )
+    finally:
+        os.chdir(old_cwd)
 
 
 def test_rm_tool(tmp_path):
