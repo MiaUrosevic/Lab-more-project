@@ -11,24 +11,27 @@ def run_grep(pattern, path_glob):
     """
     Search matching files for lines that match a regex.
 
-    >>> import os, tempfile
-    >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     f1 = os.path.join(tmp, "a.txt")
-    ...     f2 = os.path.join(tmp, "b.txt")
-    ...     _ = open(f1, "w", encoding="utf-8").write("hello world\\nfoo")
-    ...     _ = open(f2, "w", encoding="utf-8").write("bar\\nhello again")
-    ...     run_grep("hello", os.path.join(tmp, "*.txt"))
+    >>> import os, shutil
+    >>> test_dir = "__doctest_grep_tmp__"
+    >>> shutil.rmtree(test_dir, ignore_errors=True)
+    >>> os.makedirs(test_dir)
+    >>> _ = open(os.path.join(test_dir, "a.txt"), "w", encoding="utf-8").write("hello world\\nfoo")
+    >>> _ = open(os.path.join(test_dir, "b.txt"), "w", encoding="utf-8").write("bar\\nhello again")
+    >>> run_grep("hello", os.path.join(test_dir, "*.txt"))
     'hello world\\nhello again'
+    >>> shutil.rmtree(test_dir)
 
     >>> run_grep("hello", "..")
     'Error: unsafe path'
 
-    >>> import os, tempfile
-    >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     f = os.path.join(tmp, "a.txt")
-    ...     _ = open(f, "w", encoding="utf-8").write("nothing here")
-    ...     run_grep("xyz", os.path.join(tmp, "*.txt"))
+    >>> import os, shutil
+    >>> test_dir = "__doctest_grep_tmp__"
+    >>> shutil.rmtree(test_dir, ignore_errors=True)
+    >>> os.makedirs(test_dir)
+    >>> _ = open(os.path.join(test_dir, "a.txt"), "w", encoding="utf-8").write("nothing here")
+    >>> run_grep("xyz", os.path.join(test_dir, "*.txt"))
     ''
+    >>> shutil.rmtree(test_dir)
     """
     if not is_path_safe(path_glob):
         return "Error: unsafe path"
