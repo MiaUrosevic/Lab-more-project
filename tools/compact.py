@@ -9,15 +9,22 @@ def run_compact(chat):
 
     >>> class DummyChat:
     ...     def __init__(self):
-    ...         self.messages = [{"role": "user", "content": "hello"}]
+    ...         self.messages = [
+    ...             {"role": "user", "content": "hello"},
+    ...             {"role": "assistant", "content": "hi there"}
+    ...         ]
     ...         self.provider = "groq"
     ...         self.debug = False
     >>> chat = DummyChat()
     >>> result = run_compact(chat)
     >>> result.startswith("Summary of conversation:")
     True
+    >>> len(chat.messages)
+    1
     >>> chat.messages[0]["role"]
     'system'
+    >>> "hello" in chat.messages[0]["content"]
+    True
     """
     transcript = []
     for msg in chat.messages:

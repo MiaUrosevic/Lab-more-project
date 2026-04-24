@@ -11,8 +11,13 @@ def run_ls(path="."):
     """
     List files in the current folder or a specified relative folder.
 
-    >>> isinstance(run_ls("."), str)
-    True
+    >>> import tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     open(os.path.join(tmp, "b.txt"), "w").close()
+    ...     open(os.path.join(tmp, "a.txt"), "w").close()
+    ...     run_ls(tmp)
+    'a.txt\\nb.txt'
+
     >>> run_ls("..")
     'Error: unsafe path'
     """

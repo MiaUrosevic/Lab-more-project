@@ -3,7 +3,9 @@ The grep tool searches matching project files for lines that match a regex.
 """
 
 import glob
+import os
 import re
+import tempfile
 from chat import is_path_safe
 
 
@@ -11,13 +13,21 @@ def run_grep(pattern, path_glob):
     """
     Search matching files for lines that match a regex.
 
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     f1 = os.path.join(tmp, "a.txt")
+    ...     f2 = os.path.join(tmp, "b.txt")
+    ...     _ = open(f1, "w", encoding="utf-8").write("hello world\\nfoo")
+    ...     _ = open(f2, "w", encoding="utf-8").write("bar\\nhello again")
+    ...     run_grep("hello", os.path.join(tmp, "*.txt"))
+    'hello world\\nhello again'
+
     >>> run_grep("hello", "..")
     'Error: unsafe path'
-    >>> isinstance(run_grep("def", "tools/*.py"), str)
-    True
-    >>> "def run_ls" in run_grep("def run_ls", "tools/*.py")
-    True
-    >>> run_grep("^this_should_not_match_anything_12345$", "tools/*.py")
+
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     f = os.path.join(tmp, "a.txt")
+    ...     _ = open(f, "w", encoding="utf-8").write("nothing here")
+    ...     run_grep("xyz", os.path.join(tmp, "*.txt"))
     ''
     """
     if not is_path_safe(path_glob):

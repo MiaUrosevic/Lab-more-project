@@ -11,7 +11,11 @@ def run_calculate(expression):
     '4'
     >>> run_calculate("10 - 3")
     '7'
-    >>> "Error:" in run_calculate("hello")
+    >>> run_calculate("2 * (3 + 4)")
+    '14'
+    >>> run_calculate("5 / 2")
+    '2.5'
+    >>> run_calculate("hello").startswith("Error:")
     True
     """
     try:
@@ -20,3 +24,4 @@ def run_calculate(expression):
         return str(result)
     except Exception as e:
         return f"Error: {e}"
+    
