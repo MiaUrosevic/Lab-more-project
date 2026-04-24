@@ -132,3 +132,8 @@ $ cd test_projects/Mia.Urosevic.github.io
 $ docchat "show me README.md"
 This project is a personal website built using HTML, CSS, and JavaScript.
 ```
+
+## Extra Credit: AI-Only Markdown Compiler Branch
+This example is good because it provides a branch of the markdown compiler assignment whose history contains only an AI-created root commit.
+
+[Markdown Compiler `ai-only` branch](https://github.com/MiaUrosevic/Markdown_Compiler-2.0-/tree/ai-only)
