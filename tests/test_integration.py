@@ -108,6 +108,11 @@ def test_submodules_are_checked_out():
         assert any(project_dir.iterdir())
 
 
+def test_repo_includes_agents_file():
+    """Ship a root AGENTS.md file for repository-specific agent instructions."""
+    assert (REPO_ROOT / "AGENTS.md").exists()
+
+
 def test_chat_runs_in_markdown_submodule():
     """Run the chat tool inside a previous project submodule."""
     project_dir = REPO_ROOT / "test_projects" / "markdown_compiler"

@@ -5,7 +5,7 @@ An AI-powered command-line coding agent for exploring and modifying git reposito
 ![doctests](https://img.shields.io/github/actions/workflow/status/MiaUrosevic/Lab-more-project/doctests.yml?label=doctests)
 ![integration-tests](https://img.shields.io/github/actions/workflow/status/MiaUrosevic/Lab-more-project/integration-tests.yml?label=integration-tests)
 ![flake8](https://img.shields.io/github/actions/workflow/status/MiaUrosevic/Lab-more-project/flake8.yml?label=flake8)
-![coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)
+![coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)
 [![PyPI version](https://badge.fury.io/py/lab-more-project-chat.svg)](https://pypi.org/project/lab-more-project-chat/)
 
 ---
@@ -24,6 +24,7 @@ An AI-powered command-line coding agent for exploring and modifying git reposito
 - File creation, multi-file writes, file deletion, doctest execution, and optional package installs
 - Automatic git commits for agent edits with `[docchat]` commit messages
 - One-shot CLI usage, `--debug`, `--provider`, and slash-command tab completion
+- Extra credit support for `pip_install` and a doctest retry loop that keeps going until doctests pass
 - Full testing suite with doctests, integration tests, flake8, and coverage
 
 ---
@@ -31,7 +32,8 @@ An AI-powered command-line coding agent for exploring and modifying git reposito
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install .
+docchat
 ```
 
 ## Usage
