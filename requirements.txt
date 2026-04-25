@@ -2,3 +2,7 @@ pytest
 pytest-cov
 flake8
 requests
+fastapi
+uvicorn
+gradio
+openai
