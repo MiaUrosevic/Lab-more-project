@@ -16,6 +16,7 @@ args = parser.parse_args()
 
 client = OpenAI(base_url=args.url, api_key=args.apikey)
 
+
 def chat(message, history):
     messages = []
     for msg in history:
@@ -26,5 +27,6 @@ def chat(message, history):
         messages=messages
     )
     return completion.choices[0].message.content
+
 
 gr.ChatInterface(chat).launch(server_port=args.port)
