@@ -41,6 +41,7 @@ async def chat_completions(request: dict) -> dict:
         "object": "chat.completion",
         "created": 0,
         "model": request.get("model") or chat.provider_settings()["model"],
+        "model": request.get("model", chat.MODEL),
         "choices": [
             {
                 "index": 0,
